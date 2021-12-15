@@ -8,9 +8,10 @@ def flatten_dict(pyobj, prefix=True, keystring='', sep='.'):
         yield keystring, pyobj
 
 
-b = {"t2":4, "p":5, "zzz":{"1":4, "2":44, "3":444}}
-r = dict(flatten_dict(b))
-print(r)
+if __name__ == "__main__":
+    b = {"t2":4, "p":5, "zzz":{"1":4, "2":44, "3":444}}
+    r = dict(flatten_dict(b))
+    print(r)
 
-r = dict(flatten_dict(b, prefix=False))
-print(r)
+    r = dict(flatten_dict(b, prefix=False))
+    print(r)

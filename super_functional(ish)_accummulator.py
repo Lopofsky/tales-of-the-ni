@@ -38,23 +38,25 @@ def make_accumulator(primitive=dict, str_decor={'pre':'>', 'end':'<'}):
             return so_far
     return accumulate
 
-acc = make_accumulator()
-acc('a', 6) ; acc('b', 'asd') ; z = acc('d', {1:2})
-print(z)
+if __name__ == "__main__":
 
-acc2 = make_accumulator(int) # or: make_accumulator(0)
-acc2(32) ; z = acc2(43)
-print(z)
+    acc = make_accumulator()
+    acc('a', 6) ; acc('b', 'asd') ; z = acc('d', {1:2})
+    print(z)
 
-acc3 = make_accumulator(str) # or: make_accumulator('')
-acc3("Άλφα") ; acc3(" ρε") ; acc3(" γαβ"*2)
-print(acc3("!"))
+    acc2 = make_accumulator(int) # or: make_accumulator(0)
+    acc2(32) ; z = acc2(43)
+    print(z)
 
-acc3_2 = make_accumulator("Άλφα")
-acc3_2(" ρε") ; acc3_2(" γαβ"*2)
-print(acc3("!"))
+    acc3 = make_accumulator(str) # or: make_accumulator('')
+    acc3("Άλφα") ; acc3(" ρε") ; acc3(" γαβ"*2)
+    print(acc3("!"))
 
-acc4 = make_accumulator([]) # or: make_accumulator(list) | or: make_accumulator([1,2,3])
-acc4([1,2,3])
-print(acc4(['ena', 'diop']))
+    acc3_2 = make_accumulator("Άλφα")
+    acc3_2(" ρε") ; acc3_2(" γαβ"*2)
+    print(acc3("!"))
+
+    acc4 = make_accumulator([]) # or: make_accumulator(list) | or: make_accumulator([1,2,3])
+    acc4([1,2,3])
+    print(acc4(['ena', 'diop']))
 
