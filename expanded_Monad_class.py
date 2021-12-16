@@ -8,24 +8,31 @@ KUDOS & SERIOUS CREDITS TO Mr. Martin McBride, his two articles below allowed me
 from functools import reduce
 
 class Monad():
-    def __init__(self, value, Success=True): self.value, self.Success = value, Success
+    def __init__(self, value, Success=True): self.value, self.Success, self.is_dict, self.type, self.is_iterable = value, Success, isinstance(value, dict), type(value), hasattr(value, '__iter__')
     def __str__(self): return str(self.value)
     def __call__(self): return self.value
     def __or__(self, f): return self.x(f)
-    def unpack_function(self, f, kv, rdc):
+    def unpack_function(self, f, kv, rdc=False):
         multi_arg_expand = {
-            True:(lambda k, v : f[0](k, v, *f[1:])), 
-            False:(lambda x : f[0](x, *f[1:]))
+            (True, False):(lambda k, v : f[0](k, v, *f[1:])), 
+            (False, False):(lambda x : f[0](x, *f[1:])),
+            (False, True):(lambda acc, curr : f[0](acc, curr, *f[1:])),
+            (True, True):(lambda acc, kv_pair : f[0](acc, kv_pair, *f[1:])) # It's the same as the `(False, True)` case, I've just renamed the 2nd arg to 'kv_pair', to clarify that this is a tuple with the key-value pair of each record of the dictionary payload (self.value).
         }
-        return multi_arg_expand.get(kv or rdc, None) if isinstance(f, tuple) else f
-    def __mul__(self, f): return self.x(f, kv=(type(self.value) == dict), rdc=True)
+        return multi_arg_expand.get((kv, rdc), multi_arg_expand[(False, False)]) if isinstance(f, tuple) else f
+    def __sub__(self, f, rdc=True): 
+        if self.is_iterable: return self.x(f, kv=self.is_dict, rdc=rdc)
+        else: raise Exception(f"YOU CAN'T USE THE __sub__ OPERATOR (`-`) WITHOUT ITERABLE PAYLOAD! {type(self.value)=} ")
+    def __pow__(self, f): 
+        if isinstance(f, list): return self.__sub__(f[0], rdc=f[1])
+        else: raise Exception(f"YOU CAN'T USE THE __pow__ OPERATOR (`**`) WITHOUT A LIST AS A RIGHT HAND ARGUMENT, WITH THE FOLLOWING STRUCTURE: `monad_obj ** [(f, arg1, ..., argn), INIT_REDUCER] ` ! {type(self.value)=} ")
     def __add__(self, f): 
-        if type(self.value) == dict: return self.x(f, kv=True)
+        if self.is_dict: return self.x(f, kv=True)
         else: raise Exception(f"YOU CAN'T USE THE __add__ OPERATOR (`+`) WITHOUT DICT PAYLOAD! {type(self.value)=} ")
     def is_Success(self): return self.Success
     def x(self, f, kv=False, rdc=False):# aka `bind`
         if not self.Success: return self
-        try: 
+        try:
             r, ff = self(), self.unpack_function(f, kv, rdc)
             options = {
                 (list, True,):(lambda fx, r: Monad(map(fx, r)) | list), 
@@ -34,23 +41,36 @@ class Monad():
                             (Monad(v) + fx) if kv 
                             else (Monad(v) | fx)
                         )()
-                        if type(v)==dict 
+                        if isinstance(v, dict) 
                         else fx(k,v) if kv else fx(v)
                         for k, v in r.items()
                         }
                     )
                 )
             }
-            return Monad(reduce(ff, r)) if rdc else options.get((type(r), self.Success,), lambda x,y:False)(ff, r) or Monad(ff(r))
+            if rdc is not False:
+                if self.is_dict and rdc==True: payload = list(r.values())
+                elif self.is_dict: payload = [(k, v) for k,v in r.items()]
+                else: payload = r
+                result = Monad(reduce(ff, payload, rdc)) if rdc != True else Monad(reduce(ff, payload))
+            else:
+                result = options.get((type(r), self.Success,), lambda x,y:False)(ff, r) or Monad(ff(r))
+            return result
         except Exception as e: 
             msg = ''
             if str(e).find("<lambda>() missing 1 required positional argument:")>-1 and not kv:
                 msg = "Try enclosing the whole left expression in a parenthesis and use '+' instead of '|'."
-            res = Monad({f.__name__  if not isinstance(f, tuple) else 'type(f)':str(e), 'Help Message':msg}, False)
+            res = Monad({f.__name__  if not isinstance(f, tuple) else str(type(f)):str(e), 'Help Message':msg}, False)
             return res
 
 
 if __name__ == "__main__":
+
+    a = Monad(5)
+    add_one = lambda x: x + 1
+    add_more = lambda x, y: x + y
+    a = a | add_one | (add_more, 5) | (lambda x: x+2)
+    print(f"Case #0: {a()=}")
 
     mrep = lambda ss, dd, rr='': (ss if not dd else mrep(ss.replace(dd.pop(), rr), dd, rr)) if type(ss)==str else ss
     two2one_args_lambda = lambda x: mrep(x, ['Pente:', '-'])
@@ -66,7 +86,7 @@ if __name__ == "__main__":
 
     meaningless_custom_filter = (lambda k,v: meaningless(v) if str(k) not in ('b', 'c') else v*10**9 )
     l = (Monad(payload) | two2one_args_lambda) + meaningless_custom_filter | two2one_args_lambda | float | int
-    print(l())
+    print(f"Case #1: {l()=}") # Also print(l) returns the str formatted value of self.value, but with f-strings we need to use the __call__ function of the Monad object.
 
 
     # Since the below function is returning a Monad, we have to call it before we return it, otherwise the inner lambda won't execute:
@@ -74,19 +94,26 @@ if __name__ == "__main__":
     dict_pay = {str(x):x if x<50 else {"inner":{"in2":x*9.63}} for x in range(1, 100+1)}
     mult_based_on_key = lambda k,v: (Monad(v)|(lambda x: x if k.isnumeric() and float(k)<35 else x*2.3)) ()
     gen = Monad(dict_pay) + mult_based_on_key | (lambda x: round(x, 4))
-    print(gen())
+    print(f"Case #2: {gen()=}")
 
     # "Partialize" Multi arg functions:
     td = Monad({"a":1, "2":"dio"})
     t = lambda k, v, a, b: v if k.isnumeric() else (v+a)*b
     t2 = lambda k, v, a, b: v if k.isnumeric() else (v-a)/b
     r = td + (t, 50, 49) + (t2, 2, 5)
-    print(r())
+    print(f"Case #3: {r()=}")
 
     # `reduce` (operator '*' overloaded) with partializing custom function on a list:
     e = Monad([x for x in range(1, 100+1)])
     f1 = lambda x: x + 1
     f2 = lambda x, y, z, q: x + y + z - q
-    # Parentheses around all the previous expressions are necessary for the '*' operator:
-    result = (e | f1) * (f2, 5, 10)
-    print(result())
+    # Parentheses around all the previous expressions are necessary for the '-' operator:
+    result = (e | f1) - (f2, 5, 10)
+    print(f"Case #4: {result()=}")
+
+    # `reduce` (operator '**' overloaded) with partializing custom function on a dict & accessing both keys & values. Init Value is mandatory, due to the tupple type:
+    ff2 = lambda acc, rec, extra : (acc + rec[1] + extra) #if rec[0]%2==0 else 0
+    conv = lambda x, m, r: x*x if x%m==r else x*x
+    a = Monad({x:x for x in range(1, 101)})
+    za = (a | (conv, 2, 0)) ** [(ff2, 10), 0]
+    print(f"Case #5: {za()=}")
