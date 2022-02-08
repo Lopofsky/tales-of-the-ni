@@ -28,14 +28,16 @@ class Monad():
     def __or__(self, f): return self.x(f)
 
     def __sub__(self, f, rdc=True): 
+        # Reduce based only on values:
         if self.is_iterable: 
             if isinstance(f, list): return self.x(f[0], kv=self.is_dict, rdc=f[1])
             return self.x(f, kv=self.is_dict, rdc=rdc)
         else: raise Exception(f"YOU CAN'T USE THE __sub__ OPERATOR (`-`) WITHOUT ITERABLE PAYLOAD! {type(self.value)=} ")
 
-    def __pow__(self, f): 
+    def __truediv__(self, f): 
+        # Reduce based only on key & values (requires init payload to be a dict):
         if self.is_iterable and isinstance(f, list): return self.__sub__(f[0], rdc=f[1])
-        else: raise Exception(f"YOU CAN'T USE THE __pow__ OPERATOR (`**`) WITHOUT A LIST AS A RIGHT HAND ARGUMENT, WITH THE FOLLOWING STRUCTURE: ` (monad_obj) ** [(f, arg1, ..., argn), INIT_REDUCER] ` AND AN ITERABLE AS THE LEFT HAND (aka self.value for the monad_obj)! {type(self.value)=} ")
+        else: raise Exception(f"YOU CAN'T USE THE __pow__ OPERATOR (`/`) WITHOUT A LIST AS A RIGHT HAND ARGUMENT, WITH THE FOLLOWING STRUCTURE: ` (monad_obj) / [(f, arg1, ..., argn), INIT_REDUCER] ` AND AN ITERABLE AS THE LEFT HAND (aka self.value for the monad_obj)! {type(self.value)=} ")
 
     def __add__(self, f): 
         if self.is_dict: return self.x(f, kv=True)
@@ -103,8 +105,8 @@ if __name__ == "__main__":
     print(f"Case #0: {a()=}")
 
     mrep = lambda ss, dd, rr='': (ss if not dd else mrep(ss.replace(dd.pop(), rr), dd, rr)) if type(ss)==str else ss
-    two2one_args_lambda = lambda x: mrep(x, ['Pente:', '-'])
-    meaningless = lambda x: 'Pente:'+str(x) if type(x) in (int, float) else str(x)+'-0'
+    two2one_args_lambda = lambda x: mrep(x, ['just a string:', '-'])
+    meaningless = lambda x: 'just a string:'+str(x) if type(x) in (int, float) else str(x)+'-0'
     payload = {'a':1, 'b':2.09, 'c':3.236, 
         'd':{
             4:{55:'0.25'}
@@ -127,7 +129,7 @@ if __name__ == "__main__":
     print(f"Case #2: {gen()=}")
 
     # "Partialize" Multi arg functions:
-    td = Monad({"a":1, "2":"dio"})
+    td = Monad({"a":1, "2":"two"})
     t = lambda k, v, a, b: v if k.isnumeric() else (v+a)*b
     t2 = lambda k, v, a, b: v if k.isnumeric() else (v-a)/b
     r = td + (t, 50, 49) + (t2, 2, 5)
@@ -141,11 +143,11 @@ if __name__ == "__main__":
     result = (e | f1) - (f2, 5, 10)
     print(f"Case #4: {result()=}")
 
-    # `reduce` (operator '**' overloaded) with partializing custom function on a dict & accessing both keys & values. Init Value is mandatory, due to the tupple type:
+    # `reduce` (operator '/' overloaded) with partializing custom function on a dict & accessing both keys & values. Init Value is mandatory, due to the tupple type:
     ff2 = lambda acc, rec, extra : (acc + rec[1] + extra) #if rec[0]%2==0 else 0
     conv = lambda x, m, r: x*x if x%m==r else x*x
     a = Monad({x:x for x in range(1, 101)})
-    za = (a | (conv, 2, 0)) ** [(ff2, 10), 0]
+    za = (a | (conv, 2, 0)) / [(ff2, 10), 0]
     print(f"Case #5: {za()=}")
 
     # Same as the above example, only difference is the usage of '-' operator, where the right hand expression has access only at the values of the dict (monad_obj.value) & this time we use a custom initial value for the reducing (-1000). 
