@@ -27,21 +27,35 @@ class Monad():
 
     def __or__(self, f): return self.x(f)
 
+    def __add__(self, f): 
+        # [STRICTLY DICT's AS INIT PAYLOAD!] - Apply the function to the dict's values,
+        # while providing access to the dict's keys as a secondary argument to the user's
+        # function.
+        if self.is_dict: return self.x(f, kv=True)
+        else: raise Exception(f"YOU CAN'T USE THE __add__ OPERATOR (`+`) WITHOUT DICT PAYLOAD! {type(self.value)=} ")
+
+    def __eq__(self, M): 
+        if type(M) != Monad:
+            raise Exception(f"Can't compare Monad (left hand) to type `{type(M).__name__}` (right hand.")
+        return self.value == M.value
+
+    def __mul__(self, f): 
+        # Applies the function to the final value of the Monad, not at the elements.
+        # Useful when you want i.e. (but not limited to) set/len of a list/dict.
+        return Monad(f(self.value))
+
     def __sub__(self, f, rdc=True): 
-        # Reduce based only on values:
+        # Reduce, based only on values:
         if self.is_iterable: 
             if isinstance(f, list): return self.x(f[0], kv=self.is_dict, rdc=f[1])
             return self.x(f, kv=self.is_dict, rdc=rdc)
         else: raise Exception(f"YOU CAN'T USE THE __sub__ OPERATOR (`-`) WITHOUT ITERABLE PAYLOAD! {type(self.value)=} ")
 
     def __truediv__(self, f): 
-        # Reduce based only on key & values (requires init payload to be a dict):
+        # Reduce, based on keys & values (requires init payload to be a dict), same 
+        # functionality as the overloaded `__add__`:
         if self.is_iterable and isinstance(f, list): return self.__sub__(f[0], rdc=f[1])
         else: raise Exception(f"YOU CAN'T USE THE __pow__ OPERATOR (`/`) WITHOUT A LIST AS A RIGHT HAND ARGUMENT, WITH THE FOLLOWING STRUCTURE: ` (monad_obj) / [(f, arg1, ..., argn), INIT_REDUCER] ` AND AN ITERABLE AS THE LEFT HAND (aka self.value for the monad_obj)! {type(self.value)=} ")
-
-    def __add__(self, f): 
-        if self.is_dict: return self.x(f, kv=True)
-        else: raise Exception(f"YOU CAN'T USE THE __add__ OPERATOR (`+`) WITHOUT DICT PAYLOAD! {type(self.value)=} ")
 
     def is_Success(self): return self.Success
 
