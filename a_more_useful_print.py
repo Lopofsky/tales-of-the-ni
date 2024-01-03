@@ -1,26 +1,53 @@
-from inspect import getframeinfo, currentframe, getouterframes
+from datetime import datetime
+from inspect import currentframe, getframeinfo
 
 
-'''
-The line counter doesn't work properly for nested includes or calls.
-'''
-def super_print(active=True, presentation="|#count@line|--->", start=0, step=1):
+def super_print(
+    active=True,
+    presentation="|#count@line - time|---> result",
+    start=0, step=1,
+    suffix="\n", endfix="\n"
+):
     count = start
+    last_time = datetime.now()
 
-    def sp2(string, active=active):
-        nonlocal count
-        ln_cnt = str(getframeinfo(getouterframes(currentframe())[1][0]).lineno)
-        if active: print(presentation.replace("count", str(count)).replace("line", ln_cnt), string)
+    def format_presentation(line_number, input_string):
+        current_time = datetime.now()
+        time_diff = current_time - last_time
+        time_str = f"{time_diff.seconds}.{time_diff.microseconds}"
+        formatted_line = (
+            presentation
+            .replace("count", str(count))
+            .replace("line", str(line_number))
+            .replace("time", time_str)
+            .replace("result", input_string)
+        )
+        if 'result' not in presentation:
+            formatted_line += f': {input_string}'
+        return formatted_line
+
+    def print_logger(string="", active=active):
+        nonlocal count, last_time
+        if active:
+            caller_frame = currentframe().f_back
+            line_number = getframeinfo(caller_frame).lineno
+            formatted_string = ''.join([
+                suffix,
+                format_presentation(line_number, str(string)),
+                endfix
+            ])
+            print(formatted_string)
+
         count += step
-        if not float(count).is_integer():
-            check_str_format_due_to_exp_not_fucked_up_stuff = str(step) # https://stackoverflow.com/questions/38847690/convert-float-to-string-in-positional-format-without-scientific-notation-and-fa
-            #print(f"{check_str_format_due_to_exp_not_fucked_up_stuff=}")
-            round_factor = abs(int(check_str_format_due_to_exp_not_fucked_up_stuff)) if '1e-' in check_str_format_due_to_exp_not_fucked_up_stuff else len(str(step).split('.')[1])
-            count = round(count, round_factor)
-    return sp2
+        last_time = datetime.now()
+
+    return print_logger
+
 
 if __name__ == "__main__":
-    p = super_print()
-    a = "test"
-    p(f"This is a {a}")
-    p("Just print it")
+    # Example usage
+    pp = super_print(active=True, presentation=">line@time: `result`")
+
+    pp('start')
+    a_dict = {'a': 1}
+    pp(a_dict)
